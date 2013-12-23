@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+
+require 'json'
+
+unless File.exist?("#{ENV["HOME"]}/.rssrc")
+	puts "Needs configuration file at .rssrc"	
+end
+config = JSON.parse(File.read("#{ENV["HOME"]}/.rssrc"))
+
+case ARGV[0]
+when 'show'
+	require_relative '../lib/readfeeds'
+	show(config)
+when 'import'
+	require_relative '../lib/importfeeds'
+	import(config,ARGV[1])
+when 'update'
+	require_relative '../lib/getfeeds'
+	update(config)
+end
