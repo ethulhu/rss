@@ -31,6 +31,7 @@ def get_posts
 end
 
 def print_posts(posts)
+	system "clear" unless system "cls"
 	posts.length.times do |i|
 		post = posts[i]
 		puts "#{i.to_s.red}: #{post.title} - #{post.url.cyan}"
@@ -80,7 +81,6 @@ def show(config)
 						puts ReverseMarkdown.parse(posts[i].body)
 					end
 				end
-			end
 		else
 			raise UsageError
 		end

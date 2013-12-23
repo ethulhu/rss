@@ -4,6 +4,7 @@ require 'uri'
 require_relative 'models'
 
 def add_feed(f)
+	f.strip!
 	begin
 		feed = RSS::Parser.parse(f)
 		case feed.feed_type
