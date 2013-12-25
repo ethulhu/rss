@@ -36,7 +36,8 @@ def update(config)
 			end
 		end
 	end
-	pool = Array.new(5) do
+	threads = config["update"]["threads"] rescue nil
+	pool = Array.new(threads || 5) do
 		Thread.new do
 			until queue.empty?
 				p = queue.pop(non_blocking=false) rescue nil
