@@ -3,15 +3,22 @@ require 'rss'
 require 'uri'
 require_relative 'models'
 
+def howto
+	return <<eos
+Imports feeds from args or a file
+usage: rss import <url|file>
+eos
+end
+
 def add_feed(f)
-	f.strip!
+	url = f.strip
 	begin
-		feed = RSS::Parser.parse(f)
+		feed = RSS::Parser.parse(url)
 		case feed.feed_type
 			when 'rss'
-				Feed.create(:name => feed.channel.title, :url => f)
+				Feed.create(:name => feed.channel.title, :url => url)
 			when 'rss'
-				Feed.create(:name => feed.title, :url => f)
+				Feed.create(:name => feed.title, :url => url)
 		end
 	rescue ActiveRecord::RecordNotUnique
 	end
@@ -25,6 +32,7 @@ def import(config,arg)
 			add_feed(f)
 		end
 	elsif arg =~ /^#{URI::regexp}$/
+		puts arg
 		add_feed(arg)
 	else
 		puts "Neither a valid file, nor a valid url"

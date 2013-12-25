@@ -4,6 +4,18 @@ require 'reverse_markdown'
 require 'colorize'
 require_relative 'models'
 
+def howto
+	return <<eos
+Interactively display feeds
+Commands:
+- d <range>   mark read
+- u <range>   mark unread
+- p <range>   display post
+- q           quit
+usage: rss show
+eos
+end
+
 class UsageError < Exception
 end
 
@@ -60,7 +72,7 @@ def show(config)
 				posts = get_posts
 				print_posts(posts)
 			when /[dup]/
-				selected = parse_args(args)
+				selected = parse_args(args) || selected
 				raise UsageError if selected.nil? or selected.empty?
 				case command
 				when 'd'
@@ -75,10 +87,11 @@ def show(config)
 					end
 				when 'p'
 					selected.each do |i|
-						puts "#{posts[i].title} (#{posts[i].url})"
-						puts posts[i].title.gsub(/./,"=")
-						puts ""
-						puts ReverseMarkdown.parse(posts[i].body)
+						article =  "#{posts[i].title} (#{posts[i].url})\n"
+						article << posts[i].title.gsub(/./,"=")
+						article << ""
+						article << ReverseMarkdown.parse(posts[i].body)
+						IO.popen("#{ENV["PAGER"] || "less"}", "w") { |f| f.puts article }
 					end
 				end
 		else
