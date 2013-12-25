@@ -2,6 +2,7 @@ require 'pg'
 require 'rss'
 require 'colorize'
 require 'uri'
+require 'thread'
 require_relative 'models'
 
 def howto
@@ -22,38 +23,51 @@ end
 def update(config)
 	ActiveRecord::Base.establish_connection(config["db"])
 
-	new = 0
-
-	feeds = Feed.all
-	size = feeds.max_by {|f| f.url.length}.url.length
-	feeds.each do |feed|
-		printf "%-#{size}s ", feed.url
-		begin
-			open(feed.url) do |rss|
-				rss_feed = RSS::Parser.parse(rss,do_validate=false)
-				case rss_feed.feed_type
-				when 'rss'
-					rss_feed.items.each do |post|
-						begin
-							Post.create(:title => post.title, :url => strip_uri(post.link || post.guid.content), :body => post.description, :unread => true)
-							new = new + 1
-						rescue ActiveRecord::RecordNotUnique
-						end
-					end
-				when 'atom'
-					rss_feed.entries.each do |post|
-						begin
-							Post.create(:title => post.title.content, :url => strip_uri(post.link.href), :body => post.content, :unread => true)
-							new = new + 1
-						rescue ActiveRecord::RecordNotUnique
-						end
-					end
-				end
+	before = Post.count
+	size = Feed.all.max_by {|f| f.url.length}.url.length
+	queue = Queue.new
+	Feed.all.each do |feed|
+		queue << Proc.new do
+			begin
+				update_feeds(feed.url)
+				printf "%-#{size}s %s\n", feed.url, "OK!".cyan
+			rescue OpenURI::HTTPError => e
+				printf "%-#{size}s %s\n", feed.url, e.message.red
 			end
-			puts "OK!".cyan
-		rescue OpenURI::HTTPError => e
-			puts e.message.red
 		end
 	end
-	puts "#{new} new items"
+	pool = Array.new(5) do
+		Thread.new do
+			until queue.empty?
+				p = queue.pop(non_blocking=false) rescue nil
+				if p
+					p.call
+				end
+			end
+		end
+	end
+	pool.each {|t| t.join}
+	puts "#{Post.count - before} new items"
+end
+
+def update_feeds(url)
+	open(url) do |rss|
+		rss_feed = RSS::Parser.parse(rss,do_validate=false)
+		case rss_feed.feed_type
+		when 'rss'
+			rss_feed.items.each do |post|
+				url = strip_uri(post.link || post.guid.content)
+				unless Post.find_by(:url => url)
+					Post.create(:title => post.title, :url => url, :body => post.description, :unread => true)
+				end
+			end
+		when 'atom'
+			rss_feed.entries.each do |post|
+				url = strip_uri(post.link.href)
+				unless Post.find_by(:url => url)
+					Post.create(:title => post.title.content, :url => url, :body => post.content, :unread => true)
+				end
+			end
+		end
+	end
 end
